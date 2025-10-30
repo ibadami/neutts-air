@@ -1,9 +1,35 @@
 import os
-import soundfile as sf
 import torch
 import numpy as np
 from neuttsair.neutts import NeuTTSAir
 import pyaudio
+from queue import Queue
+from threading import Thread
+
+
+def audio_producer(tts, input_text, ref_codes, ref_text, audio_queue):
+    """Thread that generates audio chunks and puts them in the queue."""
+    try:
+        for chunk in tts.infer_stream(input_text, ref_codes, ref_text):
+            audio = (chunk * 32767).astype(np.int16)
+            audio_queue.put(audio)
+    except Exception as e:
+        print(f"Error in producer: {e}")
+    finally:
+        audio_queue.put(None)  # Signal end of stream
+
+
+def audio_consumer(audio_queue, p, stream):
+    """Thread that consumes audio chunks from the queue and plays them."""
+    try:
+        while True:
+            audio = audio_queue.get()
+            if audio is None:  # End of stream signal
+                break
+            stream.write(audio.tobytes())
+            audio_queue.task_done()
+    except Exception as e:
+        print(f"Error in consumer: {e}")
 
 
 def main(input_text, ref_codes_path, ref_text, backbone):
@@ -26,6 +52,11 @@ def main(input_text, ref_codes_path, ref_text, backbone):
         ref_codes = torch.load(ref_codes_path)
 
     print(f"Generating audio for input text: {input_text}")
+    
+    # Create a queue for audio chunks
+    audio_queue = Queue(maxsize=3)  # Buffer up to 3 chunks ahead
+    
+    # Initialize PyAudio
     p = pyaudio.PyAudio()
     stream = p.open(
         format=pyaudio.paInt16,
@@ -33,15 +64,32 @@ def main(input_text, ref_codes_path, ref_text, backbone):
         rate=24_000,
         output=True
     )
-    print("Streaming...")
-    for chunk in tts.infer_stream(input_text, ref_codes, ref_text):
-        audio = (chunk * 32767).astype(np.int16)
-        print(audio.shape)
-        stream.write(audio.tobytes())
+    
+    # Start producer thread (decoding)
+    producer_thread = Thread(
+        target=audio_producer,
+        args=(tts, input_text, ref_codes, ref_text, audio_queue)
+    )
+    producer_thread.start()
+    
+    # Start consumer thread (playback)
+    consumer_thread = Thread(
+        target=audio_consumer,
+        args=(audio_queue, p, stream)
+    )
+    consumer_thread.start()
+    
+    print("Streaming with parallel decoding and playback...")
+    
+    # Wait for both threads to complete
+    producer_thread.join()
+    consumer_thread.join()
     
     stream.stop_stream()
     stream.close()
     p.terminate()
+    
+    print("Streaming complete!")
 
 
 if __name__ == "__main__":
@@ -75,7 +123,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--backbone", 
         type=str, 
-        default="neuphonic/neutts-air-q8-gguf", 
+        default="neuphonic/neutts-air-q8-gguf",
         help="Huggingface repo containing the backbone checkpoint. Must be GGUF."
     )
     args = parser.parse_args()
