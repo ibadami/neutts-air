@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neutts-air"
+version = "0.1.0"
+description = "State-of-the-art on-device TTS with instant voice cloning"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Neuphonic", email = "info@neuphonic.com"}
+]
+keywords = ["tts", "text-to-speech", "voice-cloning", "neural-audio", "on-device"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
+
+dependencies = [
+    "librosa==0.11.0",
+    "neucodec>=0.0.4",
+    "numpy==2.2.6",
+    "phonemizer==3.3.0",
+    "soundfile==0.13.1",
+    "torch==2.8.0",
+    "transformers==4.56.1",
+    "resemble-perth==1.0.1",
+]
+
+[project.optional-dependencies]
+gguf = [
+    "llama-cpp-python",
+]
+onnx = [
+    "onnxruntime",
+]
+dev = [
+    "pre-commit",
+]
+
+[project.urls]
+Homepage = "https://github.com/neuphonic/neutts-air"
+Repository = "https://github.com/neuphonic/neutts-air"
+Documentation = "https://github.com/neuphonic/neutts-air/blob/main/README.md"
+"Bug Tracker" = "https://github.com/neuphonic/neutts-air/issues"
+
+[tool.setuptools.packages.find]
+include = ["neuttsair*"]
