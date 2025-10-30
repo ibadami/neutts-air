@@ -9,7 +9,9 @@ from neucodec import NeuCodec, DistillNeuCodec
 from phonemizer.backend import EspeakBackend
 from transformers import AutoTokenizer, AutoModelForCausalLM, TextIteratorStreamer
 from threading import Thread
-
+from phonemizer.backend.espeak.wrapper import EspeakWrapper
+_ESPEAK_LIBRARY = '/opt/homebrew/Cellar/espeak/1.48.04_1/lib/libespeak.1.1.48.dylib'  #use the Path to the library.
+EspeakWrapper.set_library(_ESPEAK_LIBRARY)
 
 def _linear_overlap_add(frames: list[np.ndarray], stride: int) -> np.ndarray:
     # original impl --> https://github.com/facebookresearch/encodec/blob/main/encodec/utils.py
@@ -359,7 +361,7 @@ class NeuTTSAir:
                 n_decoded_tokens += self.streaming_frames_per_chunk
                 yield processed_recon
 
-        # final decoding handled seperately as non-constant chunk size
+        # final decoding handled separately as non-constant chunk size
         remaining_tokens = len(token_cache) - n_decoded_tokens
         if len(token_cache) > n_decoded_tokens:
             tokens_start = max(
